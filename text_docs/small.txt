@@ -1,2 +1,2 @@
-To be or not to be.
-Or not.
+This is a small file.
+This file is small.
