@@ -8,12 +8,13 @@ import re
 class NGram:
     def __init__(self):
         self.model = {}
-        self.input_file = ""
+        self.training_file = ""
+        self.testing_file = ""
         self.default_context = [""]  # after parsing args, this will have n elements (the n in ngram)
-        self.output_length = 100
 
         self.transition = {}  # one part of speech to the next. noun : [verb: 60%, adjective: 40%]
         self.emission = {} # one part of speech to words.      noun : [dog: 60%, cat: 30%, wolf: 10%]
+        self.start = {}
 
         # used for calculating the confusion matrix
         self.predicted = []  # keeps track of the predicted values
@@ -22,18 +23,23 @@ class NGram:
         # parse the command line args
         self.parse_args()
 
+        self.token_count = 0
+
     def parse_args(self):
-        # set up the arg-parser
         parser = argparse.ArgumentParser(prog="N-gram random text generator",
                                          description="This program analyzes input text to generate an n-gram model and "
                                                      "then generates random text based on the model",
                                          add_help=True)
 
-        # add the <input-file> argument
-        parser.add_argument("--input-file",
+        parser.add_argument("--training-file",
                             action="store",
                             help="The path to the input file containing text for learning.",
                             default="text_docs/traintiny.txt")
+
+        parser.add_argument("--testing-file",
+                            action="store",
+                            help="The path to the input file containing text for testing.",
+                            default="text_docs/test.txt")
 
         # add the <n> argument
         parser.add_argument("--n",
@@ -42,44 +48,28 @@ class NGram:
                             default=1,
                             help="the 'n' in n-gram")
 
-        # add the <output-length> argument
-        parser.add_argument("--output-length",
-                            type=int,
-                            action='store',
-                            help="The number of words to output in the generated text",
-                            default=10)
-
         # parse the arguments
         args = parser.parse_args()
 
-        # check the input file
-        self.input_file = args.input_file
-        if self.input_file is None:
-            raise Exception("No input file provided")
-        if not os.path.exists(self.input_file):
-            raise Exception("Input file %s does not exist" % self.input_file)
-        if not os.path.isfile(self.input_file):
-            raise Exception("Input path %s is not a file" % self.input_file)
+        self.check_file_valid(args.training_file)
+        self.check_file_valid(args.testing_file)
+        self.training_file = args.training_file
+        self.testing_file = args.testing_file
 
-        # pre-generate the context
         self.default_context = [""] * args.n
 
-        # how many words are we to output?
-        self.output_length = args.output_length
+    def check_file_valid(self, f):
+        if f is None:
+            raise Exception("No input file provided")
+        if not os.path.exists(f):
+            raise Exception("Input file %s does not exist" % f)
+        if not os.path.isfile(f):
+            raise Exception("Input path %s is not a file" % f)
 
     def train(self):
-        print "Creating model from %s" % self.input_file
-
-        # start with the default context
-        context = tuple(self.default_context)
-
-        with open(self.input_file, 'r') as in_file:
+        with open(self.training_file, 'r') as in_file:
             text = in_file.read()
-
-            # normalize the string
-            text = text.replace('\n', ' ')  # replace all newlines with spaces
-            text = text.replace('\r', ' ')  # windows-style newlines too
-            text = re.sub('\s+', ' ', text)  # replace multiple spaces with one space
+            context = tuple(self.default_context)
 
             for word_pos in text.split():
                 word_pos_split = (word_pos.split('_'))
@@ -98,24 +88,37 @@ class NGram:
 
                 # update the context with the current word
                 context = self.update_context(context, pos)
+                self.token_count += 1
+
+        # get the starting probability
+        for pos in self.emission.keys():
+            total = 0
+            for t_poss in self.emission[pos]:
+                total += self.emission[pos][t_poss]
+            pos_probability = float(total) / float(self.token_count)
+            self.start[pos] = pos_probability
 
         # change frequencies to probabilities
-        for t_poss in self.transition:
-            total = 0
+        self.convert_freq_to_prob(self.transition)
+        self.convert_freq_to_prob(self.emission)
+
+        print "Finished training. Result: "
+        print "transition: ", self.transition
+        print "emission: ", self.emission
+        print "start: ", self.start
+
+    def convert_freq_to_prob(self, matrix):
+        for t_poss in matrix.values():
+            total = 0.0
             for freq in t_poss.values():
                 total += freq
             for key in t_poss.keys():
-                t_poss[key]
+                t_poss[key] /= total
 
-        print "transition: ", self.transition
-        print "emission: ", self.emission
-
-
-    @staticmethod
-    def update_context(context, word):
+    def update_context(self, context, word):
         return tuple((list(context) + [word])[1:])
 
-    def confusion_matrix(self, true, predicted):
+    def confusion_matrix(self):
         """
         Produce a confusion matrix to display the correctness of our algorithm.
         :param list true: the true values of the words. Ex. [['dog', 'noun']]
@@ -126,11 +129,27 @@ class NGram:
                         Verb: Verb (6)
                         Adjective: Adjective (2), Pronoun (3)
         """
+        cm = {}
+        for i in range (0, len(self.real)):
+            cm.setdefault(self.real[i], {self.predicted[i]: 0})
+            cm[self.real[i]][self.predicted[i]] += 1
+        return str(cm)
+
+    def label(self):
+        with open(self.training_file, 'r') as in_file:
+            text = in_file.read()
+            context = tuple(self.default_context)
+
+            for word_pos in text.split():
+                word_pos_split = (word_pos.split('_'))
+                word = word_pos_split[0]
+                pos = word_pos_split[1]
+                self.real.append(pos)  # record the true value
+                self.predicted.append(pos)  # TODO
+
 
 if __name__ == '__main__':
-    try:
-        n_gram = NGram()
-        n_gram.train()
-        n_gram.label()
-    except Exception, e:
-        print e.message
+    n_gram = NGram()
+    n_gram.train()
+    n_gram.label()
+    print "Confusion matrix: " + n_gram.confusion_matrix()
