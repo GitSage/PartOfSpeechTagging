@@ -3,6 +3,7 @@ import argparse
 import os
 import string
 import re
+from viterbi import Viterbi
 
 
 class NGram:
@@ -102,10 +103,10 @@ class NGram:
         self.convert_freq_to_prob(self.transition)
         self.convert_freq_to_prob(self.emission)
 
+        del self.transition[""]
+
         print "Finished training. Result: "
-        print "transition: ", self.transition
-        print "emission: ", self.emission
-        print "start: ", self.start
+
 
     def convert_freq_to_prob(self, matrix):
         for t_poss in matrix.values():
@@ -136,6 +137,9 @@ class NGram:
         return str(cm)
 
     def label(self):
+        vit_obs = []
+        hidden_states = []
+        vit = Viterbi()
         with open(self.training_file, 'r') as in_file:
             text = in_file.read()
             context = tuple(self.default_context)
@@ -145,7 +149,17 @@ class NGram:
                 word = word_pos_split[0]
                 pos = word_pos_split[1]
                 self.real.append(pos)  # record the true value
-                self.predicted.append(pos)  # TODO
+                if pos not in hidden_states:
+                    hidden_states.append(pos)
+                vit_obs.append(word)
+
+        print "observation: ", vit_obs
+        print "hidden states: ", hidden_states
+        print "transition: ", self.transition
+        print "emission: ", self.emission
+        print "start: ", self.start
+        probability, self.predicted = vit.viterbi(vit_obs, hidden_states, self.start, self.transition, self.emission)
+        print "Result of viterbi algorithm: ", self.predicted
 
 
 if __name__ == '__main__':
