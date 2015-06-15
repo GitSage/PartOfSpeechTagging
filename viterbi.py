@@ -1,5 +1,4 @@
-import sys
-
+from math import log
 __author__ = 'lexi'
 
 
@@ -16,6 +15,7 @@ class Viterbi:
         :param emiss_p: For example, Given a hidden state xyz, what is the probability that the corresponding OBSERVED state is abc?
         :return: list of hiddenStates that most likely correspond to the sequence of observations.
         """
+        SMALL = 0.000001
         # V_{t,k}: "the probability of the most probable state sequence responsible for the
         # first t observations that has k as its final state." - Wikipedia
         V = [{}]
@@ -30,12 +30,10 @@ class Viterbi:
             # For example:  (Likelihood of first state being the hidden state)  =
             # (probability of this hidden state being first) *
             # (probability that this hidden state corresponds to the first observation)
-            V[0][hiddenState] = start_p[hiddenState] * emiss_p[hiddenState].setdefault(observations[0], 1)
+            V[0][hiddenState] = log(start_p[hiddenState]) + log(emiss_p[hiddenState].setdefault(observations[0], SMALL))
 
             # ????
             path[hiddenState] = [hiddenState]
-
-        print str(V[0])
 
         # Run Viterbi for t > 0
         # Range: [included, not included). So basically, iterate starting at the 2nd observation,
@@ -66,9 +64,9 @@ class Viterbi:
                 # sys.stdout.flush()
 
                 # Most likely state to precede it, and its probability.
-                (prob, state) = max((V[t-1][THIS_HIDDEN_STATE] *
-                                     trans_p[THIS_HIDDEN_STATE].setdefault(hiddenState, 1) *
-                                     emiss_p[hiddenState].setdefault(observations[t], 1),
+                (prob, state) = max((V[t-1][THIS_HIDDEN_STATE] +
+                                     log(trans_p[THIS_HIDDEN_STATE].setdefault(hiddenState, SMALL)) +
+                                     log(emiss_p[hiddenState].setdefault(observations[t], SMALL)),
                                      THIS_HIDDEN_STATE)
                                     for THIS_HIDDEN_STATE in hiddenStates)
 
@@ -79,9 +77,9 @@ class Viterbi:
 
             # Don't need to remember the old paths
             path = newpath
-            print "Step %d" % t
+            # print "Step %d" % t
             # print "Path: %s" % str(path)
-            print V[t]
+            # print V[t]
 
         # if len(observations) == 1:
         lastObservationIndex = 0  # if only one element is observed max is sought in the initialization values
@@ -90,8 +88,8 @@ class Viterbi:
             lastObservationIndex = t
 
         # Debug information
-        self.print_dptable(V)
-        print "V: %s" % str(V)
+        # self._dptable(V)
+        # print "V: %s" % str(V)
 
         # Likelihood that all the observations have "hiddenState" as the final state.
         (prob, state) = max((V[lastObservationIndex][hiddenState], hiddenState) for hiddenState in hiddenStates)
@@ -101,8 +99,8 @@ class Viterbi:
     def print_dptable(self, V):
         s = "    " + " ".join(("%7d" % i) for i in range(len(V))) + "\n"
         for y in V[0]:
-            s += "%s: " % y
-            s += " ".join("%s" % ("%f" % v[y]) for v in V)
+            s += "%4s: " % y
+            s += " ".join("%.7s" % ("%f" % v[y]) for v in V)
             s += "\n"
         print(s)
 
