@@ -1,2 +1,2 @@
 This is a small file.
-This file is small.
+That file is small.

@@ -1,9 +1,5 @@
-import random
 import argparse
 import os
-import string
-import re
-import sys
 from viterbi import Viterbi
 
 
@@ -19,8 +15,9 @@ class NGram:
         self.start = {}
 
         # used for calculating the confusion matrix
-        self.predicted = []  # keeps track of the predicted values
-        self.real = []  # keeps track of the real values during the final test
+        self.words = []  # keeps track of the actual words
+        self.predicted = []  # keeps track of the predicted parts of speech
+        self.real = []  # keeps track of the real parts of speech
 
         # parse the command line args
         self.parse_args()
@@ -36,37 +33,20 @@ class NGram:
         parser.add_argument("--training-file",
                             action="store",
                             help="The path to the input file containing text for learning.",
-                            default="text_docs/testsmall.txt")
+                            default="text_docs/training.txt")
 
         parser.add_argument("--testing-file",
                             action="store",
                             help="The path to the input file containing text for testing.",
                             default="text_docs/testsmall.txt")
 
-        # add the <n> argument
-        parser.add_argument("--n",
-                            type=int,
-                            action="store",
-                            default=1,
-                            help="the 'n' in n-gram")
-
         # parse the arguments
         args = parser.parse_args()
 
-        self.check_file_valid(args.training_file)
-        self.check_file_valid(args.testing_file)
         self.training_file = args.training_file
         self.testing_file = args.testing_file
 
-        self.default_context = [""] * args.n
-
-    def check_file_valid(self, f):
-        if f is None:
-            raise Exception("No input file provided")
-        if not os.path.exists(f):
-            raise Exception("Input file %s does not exist" % f)
-        if not os.path.isfile(f):
-            raise Exception("Input path %s is not a file" % f)
+        self.default_context = [""]
 
     def train(self):
         with open(self.training_file, 'r') as in_file:
@@ -101,6 +81,7 @@ class NGram:
             self.start[pos] = pos_probability
 
         # change frequencies to probabilities
+
         self.convert_freq_to_prob(self.transition)
         self.convert_freq_to_prob(self.emission)
 
@@ -128,14 +109,28 @@ class NGram:
                         Verb: Verb (6)
                         Adjective: Adjective (2), Pronoun (3)
         """
-        # cm = {}
-        # for i in range (0, len(self.real)):
-        #     cm.setdefault(self.real[i], {self.predicted[i]: 0})
-        #     cm[self.real[i]][self.predicted[i]] += 1
-        cm = ""
+        out = ""
+        cm = {}
+        correct = 0
+        incorrect = 0
         for i in range(0, len(self.real)):
-            print self.predicted[i], self.real[i]
-        return str(cm)
+            if self.real[i] == self.predicted[i]:
+                correct += 1
+            else:
+                incorrect += 1
+            cm.setdefault(self.real[i], {})
+            cm[self.real[i]].setdefault(self.predicted[i], 0)
+            cm[self.real[i]][self.predicted[i]] += 1
+        percentage = float(correct) / (correct + incorrect) * 100
+        out += "Result: " + str(percentage) + "% correct.\n"
+        out += "Confusion matrix: \n"
+        for key, value in cm.iteritems():
+            out += "%s: %s\n" % (key, value)
+
+        return out
+        # cm = ""
+        # for i in range(0, len(self.real)):
+        #     print self.predicted[i], self.real[i]
 
     def label(self):
         vit_obs = []
@@ -148,15 +143,16 @@ class NGram:
                 word = word_pos_split[0]
                 pos = word_pos_split[1]
                 self.real.append(pos)  # record the true value
+                self.words.append(word)
                 if pos not in hidden_states:
                     hidden_states.append(pos)
                 vit_obs.append(word)
 
-        print "observation: ", vit_obs
-        print "hidden states: ", hidden_states
-        print "transition: ", self.transition
-        print "emission: ", self.emission
-        print "start: ", self.start
+        # print "observation: ", vit_obs
+        # print "hidden states: ", hidden_states
+        # print "transition: ", self.transition
+        # print "emission: ", self.emission
+        # print "start: ", self.start
         print "Beginning viterbi algorithm"
         probability, self.predicted = vit.viterbi(vit_obs, hidden_states, self.start, self.transition, self.emission)
         # print "Result of viterbi algorithm: ", self.predicted
@@ -170,4 +166,4 @@ if __name__ == '__main__':
     print "Labeling"
     n_gram.label()
     print "Done labeling"
-    print "Confusion matrix: " + n_gram.confusion_matrix()
+    print n_gram.confusion_matrix()

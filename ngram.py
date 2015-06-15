@@ -13,6 +13,7 @@ class NGram:
         self.output_length = args.n
         self.input_file = args.input_file
         self.default_context = [""] * args.n
+        self.sentence_starters = {}
         self.output_length = args.output_length
 
     def setup_parser(self):
@@ -24,7 +25,8 @@ class NGram:
         parser.add_argument("-i",
                             "--input-file",
                             action="store",
-                            default="text_docs/pride_and_prejudice.txt",
+                            # default="text_docs/bible-kjv.txt",
+                            default="text_docs/2009-Obama.txt",
                             help="The learning file. Should be ASCII and contain intelligible English. The longer the"
                                  "file is the better the program's output will be.")
 
@@ -52,47 +54,62 @@ class NGram:
             text = in_file.read()
 
             for word in text.split():
+                if len(context[0]) > 0 and context[0][0].isupper():
+                    self.sentence_starters.setdefault(context, 0)
+                    self.sentence_starters[context] += 1
+
                 c = self.model.setdefault(context, {word: 0})
                 wc = c.setdefault(word, 0)
                 c[word] = wc + 1
                 context = self.next_context(context, word)
+            c = self.model.setdefault(context, {word: 0})
+            wc = c.setdefault(word, 0)
+            c[word] = wc + 1
 
-        # we have frequencies. Convert them to probabilities.
-        for c in self.model.values():
-            total = 0.0
-            for freq in c.values():
-                total += freq
-            for key in c.keys():
-                c[key] /= total
+        # print self.sentence_starters
 
-        print self.model
+
+    def next_context(self, context, word):
+        return tuple((list(context) + [word])[1:])
 
     def generate(self):
-        out = ""
-        context = random.sample(self.model.keys(), 1)[0]
+        starter = self.get_random_sentence_starter()
+        out = starter[0] + " "
+        context = starter
         for i in range(self.output_length):
             word = self.get_random_word(context)
             out += word + " "
             context = self.next_context(context, word)
 
-        return re.sub('([a-zA-Z])', lambda x: x.groups()[0].upper(), out, 1)  # capitalize first letter
+        return out
 
-    def next_context(self, context, word):
-        return tuple((list(context) + [word])[1:])
+    def get_random_sentence_starter(self):
+        total = sum(self.sentence_starters.values())
+        num = random.randint(1, total)
+        h = 0
+        for c in self.sentence_starters:
+            l = h
+            h = l + self.sentence_starters[c]
+
+            if l < num <= h:
+                return c
 
     def get_random_word(self, context):
-        c = self.model[context]
+        try:
+            c = self.model[context]
+        except KeyError:
+            c = self.model[self.get_random_sentence_starter()]
         if len(c) == 1:
             return c.keys()[0]
         total_words = sum(c.values())
         num = random.randint(1, total_words)
 
-        word_high = 0
+        h = 0
         for word in c:
-            word_low = word_high
-            word_high = word_low + c[word]
+            l = h
+            h = l + c[word]
 
-            if word_low < num <= word_high:
+            if l < num <= h:
                 return word
 
         return c.keys()[0]

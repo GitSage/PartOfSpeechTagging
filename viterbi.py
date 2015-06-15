@@ -1,4 +1,6 @@
 from math import log
+import sys
+
 __author__ = 'lexi'
 
 
@@ -60,8 +62,7 @@ class Viterbi:
                 #                     state  *TIMES* probability of hiddenState, given that the previous state was THIS_
                 #                     HIDDEN_STATE *TIMES* probability that hiddenState generated the t'th observation
                 #           , THIS_HIDDEN_STATE that produced the maximum probability)
-                # sys.stdout.write("\r%d of %d" % (count, len(observations)))
-                # sys.stdout.flush()
+
 
                 # Most likely state to precede it, and its probability.
                 (prob, state) = max((V[t-1][THIS_HIDDEN_STATE] +
@@ -75,21 +76,20 @@ class Viterbi:
                 V[t][hiddenState] = prob
                 newpath[hiddenState] = path[state] + [hiddenState]
 
+            sys.stdout.write("\rWorking on observation %d of %d" % (count, len(observations)))
+            sys.stdout.flush()
+
             # Don't need to remember the old paths
             path = newpath
-            # print "Step %d" % t
-            # print "Path: %s" % str(path)
-            # print V[t]
+
+        sys.stdout.write("\rWorking on observation %d of %d \n" % (count+1, len(observations)))
+        sys.stdout.flush()
 
         # if len(observations) == 1:
         lastObservationIndex = 0  # if only one element is observed max is sought in the initialization values
         if len(observations) != 1:
             # t is the array-index of the last element of the observations. (It is observation-length minus 1.)
             lastObservationIndex = t
-
-        # Debug information
-        # self._dptable(V)
-        # print "V: %s" % str(V)
 
         # Likelihood that all the observations have "hiddenState" as the final state.
         (prob, state) = max((V[lastObservationIndex][hiddenState], hiddenState) for hiddenState in hiddenStates)
