@@ -3,6 +3,7 @@ import argparse
 import os
 import string
 import re
+import sys
 from viterbi import Viterbi
 
 
@@ -35,12 +36,12 @@ class NGram:
         parser.add_argument("--training-file",
                             action="store",
                             help="The path to the input file containing text for learning.",
-                            default="text_docs/traintiny.txt")
+                            default="text_docs/testsmall.txt")
 
         parser.add_argument("--testing-file",
                             action="store",
                             help="The path to the input file containing text for testing.",
-                            default="text_docs/test.txt")
+                            default="text_docs/testsmall.txt")
 
         # add the <n> argument
         parser.add_argument("--n",
@@ -105,9 +106,6 @@ class NGram:
 
         del self.transition[""]
 
-        print "Finished training. Result: "
-
-
     def convert_freq_to_prob(self, matrix):
         for t_poss in matrix.values():
             total = 0.0
@@ -130,20 +128,21 @@ class NGram:
                         Verb: Verb (6)
                         Adjective: Adjective (2), Pronoun (3)
         """
-        cm = {}
-        for i in range (0, len(self.real)):
-            cm.setdefault(self.real[i], {self.predicted[i]: 0})
-            cm[self.real[i]][self.predicted[i]] += 1
+        # cm = {}
+        # for i in range (0, len(self.real)):
+        #     cm.setdefault(self.real[i], {self.predicted[i]: 0})
+        #     cm[self.real[i]][self.predicted[i]] += 1
+        cm = ""
+        for i in range(0, len(self.real)):
+            print self.predicted[i], self.real[i]
         return str(cm)
 
     def label(self):
         vit_obs = []
         hidden_states = []
         vit = Viterbi()
-        with open(self.training_file, 'r') as in_file:
+        with open(self.testing_file, 'r') as in_file:
             text = in_file.read()
-            context = tuple(self.default_context)
-
             for word_pos in text.split():
                 word_pos_split = (word_pos.split('_'))
                 word = word_pos_split[0]
@@ -158,12 +157,17 @@ class NGram:
         print "transition: ", self.transition
         print "emission: ", self.emission
         print "start: ", self.start
+        print "Beginning viterbi algorithm"
         probability, self.predicted = vit.viterbi(vit_obs, hidden_states, self.start, self.transition, self.emission)
-        print "Result of viterbi algorithm: ", self.predicted
+        # print "Result of viterbi algorithm: ", self.predicted
 
 
 if __name__ == '__main__':
     n_gram = NGram()
+    print "Training"
     n_gram.train()
+    print "Done training"
+    print "Labeling"
     n_gram.label()
+    print "Done labeling"
     print "Confusion matrix: " + n_gram.confusion_matrix()
