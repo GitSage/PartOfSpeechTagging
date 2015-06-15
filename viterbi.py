@@ -2,6 +2,34 @@ __author__ = 'lexi'
 class Viterbi():
 	def __init__(self):
 		pass
+	
+	def getProb2(self, array, index1, index2):
+		'''
+		Index an array, with error checking if it does not exist. If it does not exist, return 0.
+		Assume these arrays contain probabilities. If a probability does not exist, we assume it is
+		0.
+		:param array: the array to get a probability from
+		:param index1: the index of the array to retrieve the item from
+		:param index2: second index
+		:return: array[index1][index2] if it exists, or 0 if it does not exist.
+		'''
+		if index1 in array:
+			if index2 in array[index1]:
+				return array[index1][index2]
+		return 0
+
+	def getProb(self, array, index1):
+		'''
+		Index an array, with error checking if it does not exist. If it does not exist, return 0.
+		Assume these arrays contain probabilities. If a probability does not exist, we assume it is
+		0.
+		:param array: the array to get a probability from
+		:param index1: the index of the array to retrieve the item from (example: array[index1])
+		:return: array[index1] if it exists, or 0 if it does not exist.
+		'''
+		if index1 in array:
+			return array[index1]
+		return 0
 
 
 	def viterbi(self, observations, hiddenStates, start_probability, transition_probability, emission_probability):
@@ -26,7 +54,7 @@ class Viterbi():
 	    # For each hidden state possible...
 	    for hiddenState in hiddenStates:
 		# For example:  (Likelihood of first state being the hidden state)  = (probability of this hidden state being first) * (probability that this hidden state corresponds to the first observation)
-	        V[0][hiddenState] = start_probability[hiddenState] * emission_probability[hiddenState][observations[0]]
+	        V[0][hiddenState] = self.getProb(start_probability, hiddenState) * self.getProb2(emission_probability, hiddenState, observations[0])
 
 	        # ????
 	        path[hiddenState] = [hiddenState]
@@ -59,7 +87,7 @@ class Viterbi():
 		    #           , THIS_HIDDEN_STATE that produced the maximum probability)
 
 	            # Most likely state to precede it, and its probability.
-	            (prob, state) = max((V[t-1][THIS_HIDDEN_STATE] * transition_probability[THIS_HIDDEN_STATE][hiddenState] * emission_probability[hiddenState][observations[t]], THIS_HIDDEN_STATE) for THIS_HIDDEN_STATE in hiddenStates)
+	            (prob, state) = max((V[t-1][THIS_HIDDEN_STATE] * self.getProb2(transition_probability, THIS_HIDDEN_STATE, hiddenState) * self.getProb2(emission_probability, hiddenState, observations[t]), THIS_HIDDEN_STATE) for THIS_HIDDEN_STATE in hiddenStates)
 
 	            #Likelihood that the first t observations have hiddenState as the final state ====== the probability that the most-likely-state precedes it.
 	            V[t][hiddenState] = prob
@@ -107,6 +135,8 @@ if __name__ == "__main__":
 	   'Healthy' : {'normal': 0.5, 'cold': 0.4, 'dizzy': 0.1},
 	   'Fever' : {'normal': 0.1, 'cold': 0.3, 'dizzy': 0.6}
 	   }
+	#a = self.getProb(start_probability, hiddenState) * self.getProb2(emission_probability, hiddenState, self.getProb(observations, 0))
+        #(prob, state) = max((V[t-1][THIS_HIDDEN_STATE] * self.getProb2(transition_probability, THIS_HIDDEN_STATE, hiddenState) * self.getProb2(emission_probability, hiddenState, self.getProb(observations, t)), THIS_HIDDEN_STATE) for THIS_HIDDEN_STATE in hiddenStates)
 
 	v = Viterbi()
 	print v.viterbi(observations,
